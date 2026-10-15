@@ -1261,7 +1261,23 @@
     // Submissions are emailed to this address through FormSubmit (formsubmit.co).
     // The very first submission sends an "Activate" email to this inbox; click it once to turn delivery on.
     const FORM_EMAIL = 'admincowboymechanics@gmail.com';
+    // Every submission is also logged as a row in the "Cowboy Mechanics - Form Submissions" Google Sheet
+    // (admincowboymechanics@gmail.com's Drive) through its Apps Script web app.
+    const SHEET_LOG_URL = 'https://script.google.com/macros/s/AKfycbwMjF_zkr4hY658PlU4UTNwlMW3vTzzkTSVRJtskLep0qAvmCyiKOlEMhp6hkiL_nO4/exec';
     const val = id => document.getElementById(id).value.trim();
+
+    // Fire-and-forget: the sheet log never blocks or breaks the email delivery.
+    function logToSheet(row) {
+      try {
+        fetch(SHEET_LOG_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(row),
+          keepalive: true
+        }).catch(() => {});
+      } catch (err) {}
+    }
 
     async function sendForm(form, subject, fields, replyTo) {
       const button = form.querySelector('button[type="submit"]');
@@ -1298,6 +1314,18 @@
       if (e.target.querySelector('[name="_honey"]').value) return;
       const f = name => val(prefix + name);
       const emergency = document.getElementById(prefix + 'Emergency').checked;
+      logToSheet({
+        form: where,
+        emergency: emergency ? 'YES' : 'No',
+        firstName: f('FirstName'),
+        lastName: f('LastName'),
+        phone: f('Phone'),
+        email: f('Email'),
+        address: f('Address'),
+        category: f('Category'),
+        preferredDate: f('StartDate') || 'Flexible',
+        details: f('Details')
+      });
       const ok = await sendForm(e.target, `${emergency ? 'EMERGENCY - ' : ''}New service request - Cowboy Mechanics`, {
         'Form': where,
         'Emergency': emergency ? 'YES' : 'No',
